@@ -1,0 +1,29 @@
+---
+title: "Taylor Medina"
+description: |
+ 
+site: distill::distill_website
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+# Learn more about creating websites with Distill at:
+# https://rstudio.github.io/distill/website.html
+
+# Learn more about publishing to GitHub Pages at:
+# https://rstudio.github.io/distill/publish_website.html#github-pages
+
+```
+
+### About Me
+
+I am a Masters of Science in Environmental Science and Management (MESM) student at the Bren School of Environmental Science and Management at the University of California Santa Barbara. He is focusing on Pollution Prevention and Remediation and am interested in the prevalence of emerging pollutants and their effects on the environment as well as applying data science to a variety of environmental applications. I graduated from Arizona State University in May 2021 and received a B.S.E. in Chemical Engineering and a minor in mathematics as seen here:
+
+![](grad.jpg)
+
+### View my CV Here
+```{r}
+xfun::embed_file("resume.pdf", text = "View my Resume here")
+```
+

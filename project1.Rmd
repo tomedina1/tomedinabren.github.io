@@ -1,0 +1,109 @@
+---
+title: "Spatial Analysis of Oil Spills in California"
+description: |
+  In this project, I used oil spills spatial data from the California Department of Fish and Game to develop an interactive map of oil spills in the state. I also developed a chloropleth map to visualize which counties have had a higher frequency of oil spills. Then I ran a point pattern analysis to determine if the oil spill ocurrences were considered spatially random or that they are clustered.
+output: distill::distill_article
+---
+
+```{r setup, include = TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(tmap)
+library(sf)
+```
+
+
+
+```{r}
+### Load in the oil spill data
+oil_spills <- read_sf(dsn = here('data', 'oil_spills'),
+                      layer = 'ds394') %>% 
+  janitor::clean_names()
+
+### Load in the CA county shape file
+ca_county <- read_sf(dsn = here('data', 'ca_counties'),
+                     layer = 'CA_Counties_TIGER2016') %>% 
+  janitor::clean_names() %>% 
+  select(name)
+
+### Match CRS 
+ca_county <- st_transform(ca_county, st_crs(oil_spills))
+```
+
+### Interactive Oil Spill Map
+
+```{r}
+tmap_mode('view')
+
+tm_shape(ca_county) +
+  tm_sf() +
+  tm_shape(oil_spills) +
+  tm_dots('specificlo', title = 'Incident Location')
+```
+
+**Figure 1:** Interactive map of California oil spills. The teal points are freshwater oil spills, the light yellow are land oil spills, and the lavender points are marine oil spills.
+
+### Chloropleth of Inland Oil Spills
+
+```{r}
+### Filter for land oil spills
+oil_spills_land <- oil_spills %>% 
+  filter(specificlo != 'Marine') 
+
+### spatial join
+ca_land_oil <- ca_county %>% 
+  st_join(oil_spills_land) %>% 
+  group_by(name) %>% 
+  summarize(n_spills = sum(!is.na(dfgcontrol))) ### gets counts of oil spills by county
+
+### chloropleth in ggplot
+ggplot(data = ca_land_oil) +
+  geom_sf(aes(fill = n_spills), color = "white", size = 0.1) +
+  scale_fill_gradientn(colors = c("lightgray","orange","red")) +
+  theme_void() +
+  labs(fill = "Oil Spill Ocurrences by County")
+```
+
+**Figure 2:** A map of oil spill counts by county in Caliornia. Grey is the minimal oil spills and red is a high number of oil spill ocurrences.
+
+### Point Pattern Analysis
+
+```{r}
+oil_ppp <- spatstat.geom::as.ppp(st_geometry(oil_spills)) ### Point Pattern Analysis
+
+ca_win <- spatstat.geom::as.owin(ca_county)
+
+oil_full <- spatstat.geom::ppp(oil_ppp$x, oil_ppp$y, window = ca_win)
+```
+
+
+```{r}
+r_vec <- seq(0, 10000, by = 100)
+
+gfunction <- spatstat.core::envelope(oil_full, fun = spatstat.core::Gest, r = r_vec, nsim = 20, nrank = 2)
+
+gfunction_long <- gfunction %>% 
+  as.data.frame() %>% 
+  pivot_longer(cols = obs:hi, names_to = 'model', values_to = 'g_val')
+
+ggplot(data = gfunction_long, aes(x = r, y = g_val, group = model)) +
+  geom_line(aes(color = model)) +
+  labs(x = 'r \ndistance (m)',
+       y = 'G(r)') +
+  theme_minimal()
+```
+
+**Figure 3:** G function results from the point pattern analysis. The blue line is the observed (obs) data points, as well as the theoretical complete spatial randomness (theo) with its high and low portions of a 95% confidence interval (hi, lo). 
+
+From **Figure 3**, the blue line representing the observed clustering shows that oil spill incidences are indeed highly clustered noted by the large increase in G at a lower distance. From **Figure 1**, most oil spills are concentrating in a few counties, especially those with maritime access, which coincides with the point pattern analysis results that oil spills incidences are highly clustered, therefore rejecting the null hypothesis that there is complete spatial randomness. 
+
+**Data Citation:** 
+
+California Department of Fish and Game, Office of Oil Spill Prevention and Response (2008). *Oil Spill Incidence Tracking*. https://map.dfg.ca.gov/metadata/ds0394.html.
+
+U.S. Census Bureau, Department of Commerce (2021). *TIGER2016 California County Shapefile*. https://catalog.data.gov/dataset/tiger-line-shapefile-2016-state-california-current-county-subdivision-state-based
+
+
+

@@ -1,0 +1,23 @@
+name: "."
+title: "Taylor Medina"
+description: |
+  Taylor Medina
+output_dir: "docs"
+theme: theme.css
+navbar:
+  right:
+    - text: "About"
+      href: taylor.html
+    - text: "Resume"
+      href: index.html
+    - text: "Data Science Projects"
+      menu:
+      - text: "Spatial Data Analysis"
+        href: project1.html
+      - text: "Machine Learning"
+        href: project2.html
+      - text: "Sentiment Analysis"
+        href: project3.html
+      - text: "PFAS Tracker - Shiny"
+        href: project4.html
+output: distill::distill_article

@@ -1,0 +1,118 @@
+---
+title: "Text and Sentiment Analysis"
+description: |
+  In this project, I used text wrangling techniques and sentiment analysis in R to analyze East of Eden, by John Steinbeck.
+output: distill::distill_article
+---
+
+East of Eden is one of my favorite books, so undertaking a short text analysis project on this book was only natural. I used the `stringr` and `tidytext` packages to wrangle the text from a PDF of the book to get information on word count by chapter. This project was a lot more difficult for me as learning to work with strings is a lot different than working with numerical data. After getting word counts, I went into sentiment analysis and used the [NRC lexicon](https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm#:~:text=The%20NRC%20Emotion%20Lexicon%20is,were%20manually%20done%20by%20crowdsourcing.) to analyze the emotions associated with each word in the novel to get an overall feel of the text.
+
+**Citation:** 
+
+Steinbeck, J. (1992). East of Eden. New York: Penguin Books.
+
+```{r setup, include = TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(pdftools)
+library(ggwordcloud)
+library(kableExtra)
+library(plotly)
+```
+
+```{r}
+eoe <- pdf_text(here::here('data', '20211110-a5.pdf'))
+```
+
+### Word Counts
+
+```{r}
+eoe_text <- data.frame(eoe) %>% ### converts text to data frame
+  mutate(page = 1:n(), ### add page number
+         full_text = str_split(eoe, pattern = '\\n')) %>% ### incorporate line breaks
+  unnest(full_text) %>% ### make each line a row
+  mutate(full_text = str_squish(full_text)) %>% ### remove extra white space
+  select(!1) %>% ### remove nested original text
+  filter(page >= 6 & page <= 638) ### only include information in chapters
+```
+
+```{r}
+eoe_chapts <- eoe_text %>% 
+  mutate(chapter = ifelse(str_detect(full_text, "Chapter"), full_text, NA)) %>% ### detects chapter
+  fill(chapter, .direction = 'down') %>% ### adds the chapter to every row
+  separate(col = chapter, into = c("ch", "no"), sep = " ") %>% ### splits chapter and number
+  mutate(no = ifelse(no == 'I', 1, no), ### roman numeral to numerical
+         no = as.numeric(no)) %>% ### converts number to numeric class
+  drop_na()
+```
+
+```{r}
+eoe_words <- eoe_chapts %>% 
+  unnest_tokens(word, full_text) %>% ### each row is a word   
+  mutate(word = str_remove_all(word, pattern = "[:digit:]")) ### removes numerical words
+
+eoe_word_count <- eoe_words %>% 
+  group_by(no) %>% 
+  summarize(word_count = n()) ### word count by chapter
+
+ggplotly(ggplot(data = eoe_word_count, aes(x = no, y = word_count)) +
+  geom_col(stat = 'identity', fill = 'darkblue', aes(text = paste('Chapter', no, '\nWord Count:', word_count))) +
+    labs(x = 'Chapter',
+         y = 'Word Count') +
+  theme_minimal(),
+  tooltip = 'text')
+```
+
+**Figure 1:** Word Count by Chapter for East of Eden
+
+```{r}
+eoe_words_clean <- eoe_words %>% 
+  anti_join(stop_words, by = 'word') ### removes stop words from the list   
+
+eoe_count <- eoe_words_clean %>% 
+  count(word) %>% ### overall word count 
+  slice(1:200) ### first 200 words
+
+### wordcloud 
+ggplot(data = eoe_count, aes(label = word)) +
+  geom_text_wordcloud(aes(color = n, size = n), shape = 'triangle-upright', area_corr_power = 1) +
+  scale_size_area(max_size = 24) +
+  scale_color_viridis_c() +
+  theme_minimal()
+```
+
+**Figure 2:** Word Cloud for the Top 200 most common words in East of Eden
+
+The most common words were found to be character names. Other common words were found to be words describing time and ambiance, such as afternoon and air. 
+
+### Sentiment Analysis
+
+```{r}
+### join the NRC Lexicon
+eoe_sentiment <- eoe_words_clean %>% 
+  inner_join(get_sentiments(lexicon = 'nrc'), by = 'word')
+```
+
+```{r}
+nrc_count <- eoe_sentiment %>% 
+  group_by(sentiment) %>% 
+  summarize(count = n()) ### get counts of sentiments
+
+
+ggplotly(ggplot(nrc_count) +
+  geom_col(aes(x = reorder(sentiment, -count), y = count,
+               text = paste('sentiment:', sentiment, '\ncount:', count)), fill = 'darkred') +
+  theme_minimal() +
+  labs(x = 'sentiment',
+       y = 'count'),
+  tooltip = 'text')
+```
+
+**Figure 3:** Sentiment Analysis using the NRC lexicon for East of Eden.
+
+Interestingly, the text is almost equally positive and negative. East of Eden has many positive aspects to it, especially when describing the beauty of the Salinas Valley, but also contains many negative sentiments dealing with relationships and human feelings. Averaging out the two, the text is relatively neutral.
+
+

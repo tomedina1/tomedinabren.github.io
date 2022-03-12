@@ -1,0 +1,17 @@
+---
+title: "Taylor Medina"
+image: "taylor.jpg"
+links:
+  - label: LinkedIn
+    url: "https://linkedin.com/"
+  - label: Twitter
+    url: "https://twitter.com/"
+  - label: GitHub
+    url: "https://github.com/"
+  - label: Email
+    url: "mailto:email@email.com"
+output:
+  postcards::jolla
+---
+ 
+I am a Masters of Science in Environmental Science and Management (MESM) student at the Bren School of Environmental Science and Management at the University of California Santa Barbara. He is focusing on Pollution Prevention and Remediation and am interested in the prevalence of emerging pollutants and their effects on the environment as well as applying data science to a variety of environmental applications.

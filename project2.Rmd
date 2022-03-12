@@ -1,0 +1,206 @@
+---
+title: "Supervised Machine Learning to Determine Palmetto Species"
+description: |
+  In this project, I used supervised machine learning to develop a binary logistic regression model that would determine the species of Palmetto Palms commonly found in Florida. Different variables were used in the model and they were compared at the end of the analysis.
+output: distill::distill_article
+---
+
+The data set contains information on two dominant palmetto species (*Serenoa repens* and *Sabal etonia*) in South Florida and contains observations on the species, the height, the canopy width, the canopy length, the number of green leaves, as well as other physical characteristics (Abrahamson, 2019. Two models were generated, with the first being a function of width, height, length, and the count of green leaves. The second model modeled species as a function of width, height, and the count of green leaves. To compare models, 10-fold repeated cross validation is performed to determine which model performs better. Additionally, the Aikaike Information Criterion (AIC) is used to compare the models. 
+ 
+```{r setup, include = TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE) 
+
+library(tidyverse)
+library(here)
+library(caret)
+library(broom)
+library(sjPlot)
+library(patchwork)
+library(AICcmodavg)
+library(kableExtra)
+```
+
+
+
+Each of the variables were visualized to determine if there were any differences that were significant between species of palmetto.
+
+```{r}
+palmetto <- read_csv(here('data', 'palmetto.csv')) %>% 
+  select(species, height, length, width, green_lvs) %>% 
+  drop_na() 
+
+palmetto_plot <- palmetto 
+
+  for(i in 1:length(palmetto_plot$species)){
+    
+    if(palmetto_plot$species[i] == 1){
+      palmetto_plot$species[i] = 'Serenoa repens'}
+    
+    else{
+      palmetto_plot$species[i] = 'Sabal etonia'}}
+
+palmetto$species <- factor(palmetto$species)
+```
+
+```{r}
+p1 <- ggplot(data = palmetto_plot, aes(x = width, y = height)) +
+  geom_point(aes(color = species), size = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c('forest green', 'green')) +
+  labs(x = 'canopy width (cm)',
+       y = 'height (cm)') +
+  theme_minimal()
+
+p2 <- ggplot(data = palmetto_plot, aes(x = green_lvs, y = height)) +
+  geom_jitter(aes(color = species), size = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c('forest green', 'green')) +
+  labs(x = 'count of green leaves',
+       y = 'height (cm)') +
+  theme_minimal()
+
+p3 <- ggplot(data = palmetto_plot, aes(x = length, y = height)) +
+  geom_point(aes(color = species), size = 0.5) +
+  scale_color_manual(values = c('forest green', 'green')) +
+  labs(x = 'canopy length (cm)',
+       y = 'height(cm)') +
+  theme_minimal()
+
+
+
+p1 | p2 | p3
+```
+
+
+**Figure 1:** Visualization of the effects the predictor variables have on height differentiated by species (dark green is Sabal etonia and light green is Serenoa repens.)
+
+From **Figure 1**, height is an important variable as well as the number of green leaves as there is a clear difference between the species. Canopy length and canopy width do not have much differentiation and may be less important in the differentiation between the two species. 
+
+### Model Generation and Testing
+```{r}
+### Model 1
+f1 <- species ~ width + height + length + green_lvs
+
+### Model 2
+f2 <- species ~ height + width + green_lvs
+```
+
+
+```{r}
+### Training the models
+set.seed(100)
+
+tr_control <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+
+model1 <- train(f1, data = palmetto,
+                method = "glm", family = 'binomial',
+                trControl = tr_control)
+
+model2 <- train(f2, data = palmetto,
+                method = "glm", family = 'binomial',
+                trControl = tr_control)
+```
+
+```{r}
+### Testing the model on the entire dataset
+f1_glm <- glm(formula = f1,
+              data = palmetto,
+              family = 'binomial')
+
+f2_glm <- glm(formula = f2,
+              data = palmetto,
+              family = 'binomial')
+```
+
+**Table 1:** Model Summary Table for the 2 models.
+
+```{r}
+tab_model(f1_glm, f2_glm, show.ci = FALSE, show.est = TRUE)
+```
+
+```{r}
+### AIC Table
+aic <- aictab(list(f1_glm, f2_glm)) %>% 
+  select(1:4) 
+
+aic %>% 
+  kable(col.names = c('Model Name',
+                      'K',
+                      'AICc',
+                      'Delta AICc'),
+  caption = 'Table 2: AICc summary for both model 1 and model 2') %>% 
+  kable_styling(bootstrap_option = c('hover', 'striped'))
+```
+
+
+
+## Final Model 
+
+The final model chosen is f1, where the species is modeled as a function of width, height, length, and the number of green leaves. The model had a much lower AIC than f2, as well as performed better when looking at the model summary. Additionally, each term had a statistically significant estimate as compared to f2.
+
+```{r}
+### Model Summary 
+f1_tidy <- f1_glm %>% 
+  broom::tidy() 
+
+f1_tidy %>% 
+  kable(caption = 'Table 3: Final model summary') %>% 
+  kable_styling(bootstrap_options = c('hover', 'striped'))
+```
+
+The final model is given below, with p representing the probability, w representing the width, h representing the height, l representing the length, and $n_L$ representing the number of green leaves:
+
+$$
+ln(\frac{p}{1-p}) = 3.23 + 0.039w - 0.029h + 0.046l - 1.91n_L
+$$
+
+```{r}
+options(scipen = 999)
+
+augment_f1 <- f1_glm %>% 
+  augment(type.predict = 'response') %>% ### gets predicted values
+  select(species, .fitted) %>% 
+  mutate(prediction = ifelse(.fitted > 0.5, 2, 1), ### outputs value over .5 as "2"
+         accuracy = case_when(
+           species == prediction ~ 1, ### accurate
+           species != prediction ~ 0), ### inaccurate
+         correct = case_when(
+           accuracy == 1 ~ 'y',
+           accuracy == 0 ~ 'n'))
+
+accuracy_summary <- augment_f1 %>% 
+  group_by(species) %>% 
+  summarize(accuracy = mean(accuracy, na.rm = TRUE) * 100) ### calculates accuracy as a percentage
+
+correct_summary <- augment_f1 %>% 
+  group_by(correct, species) %>%  
+  summarize(count = n()) %>% ### calculates the counts of correct and incorrect guesses
+  pivot_wider(names_from = correct,
+              values_from = count) 
+
+correct_summary <- correct_summary[, c(1, 3, 2)] ### changes column order
+
+final <- cbind(accuracy_summary, correct_summary) %>% ### final analysis table
+  select(!3) %>% 
+  mutate(species = case_when(
+    species == 1 ~ 'Serenoa repens',
+    species == 2 ~ 'Sabal etonia'))
+
+final %>% 
+  kable(col.names = c('species',
+                      'accuracy (%)',
+                      'count of accurate predictions',
+                      'count of inaccurate predictions'),
+        caption = 'Table 4: Accuracy of the chosen model in predicting palm species') %>% 
+  kable_styling(bootstrap_options = c('hover', 'striped'))
+```
+
+From **Table 4**, the model was more accurate for determining Sabal etonia palms. The model has a high accuracy in determining the species of a palm based off of the data but could use further modifications such as incorporating other variables in the data set. 
+
+## Citation
+
+Abrahamson, W.G. 2019. Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals ver 1. Environmental Data Initiative. https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5
+
+
+
+
+
+

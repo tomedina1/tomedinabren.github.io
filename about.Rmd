@@ -1,0 +1,14 @@
+---
+title: "Taylor Medina"
+description: |
+  Here is some additional information 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+xfun::embed_file("resume.pdf", text = "View my Resume here")
+```
+
