@@ -91,7 +91,7 @@ d-article a {
 
 img {
   width: auto;
-  height: 10%;
+  height: 100%;
 }
 
 ul > li::marker {

@@ -1,7 +1,7 @@
 ---
 title: "PFAS Tracker"
 description: |
-  I am currently working on a Shiny App that is still waiting to be published dealing with PFAS found in Wastewater Treatment Plants in Souther California
+  I am currently working on a Shiny App that is still waiting to be published dealing with PFAS found in Wastewater Treatment Plants in Southern California
 output: distill::distill_article
 ---
 
