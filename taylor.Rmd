@@ -3,13 +3,13 @@ title: "Taylor Medina"
 image: "taylor.jpg"
 links:
   - label: LinkedIn
-    url: "https://linkedin.com/"
+    url: "https://www.linkedin.com/in/taylor-medina-03b548225/"
   - label: Twitter
     url: "https://twitter.com/"
   - label: GitHub
-    url: "https://github.com/"
+    url: "https://github.com/tomedinabren"
   - label: Email
-    url: "mailto:email@email.com"
+    url: "mailto:emailtomedina@bren.ucsb.edu"
 output:
   postcards::jolla
 ---
